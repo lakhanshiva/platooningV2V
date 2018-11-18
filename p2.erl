@@ -3,7 +3,22 @@
 
 -module(p2).
 
--export([start/0, follow/0, cooperate/0, ident/1]).
+-export([start/0, align/0, wait/0, follow/0, cooperate/0, ident/1]).
+
+wait() -> %% wait process terminates when merge is done
+	receive
+		merge_done ->
+			io:format("Merge is done~n", [])
+	end.
+
+align() -> %% align process terminates when align is done
+	receive
+		align_start ->
+			io:format("Alignment started~n", []),
+			align();
+		align_done ->
+			io:format("Alignment done~n", [])
+	end.
 
 follow() -> %% This is the follow process function
 	receive
@@ -25,9 +40,14 @@ ident(Y) -> %% This is the vehicle identification process function
 	
 
 start() -> %% program execution begins here
-    %% spawns two processes that execute concurrently like follow || cooperate in pi-calc
+	Wait_PID = spawn(p2, wait, []),
+	Wait_PID ! merge_done,
+	Align_PID = spawn(p2, align, []),
+	Align_PID ! align_start,
+	Align_PID ! align_done,
 	Ident_PID = spawn(p2, ident, [1]),
 	Ident_PID ! get_id,
+	%% spawns two processes that execute concurrently like follow || cooperate in pi-calc
 	Follow_PID = spawn(p2, follow, []),
 	Follow_PID ! keep_dist,
 	Cooperate_PID = spawn(p2, cooperate, []).
