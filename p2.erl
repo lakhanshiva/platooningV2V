@@ -3,9 +3,9 @@
 
 -module(p2).
 
--export([start/0, align/0, wait/0, follow/0, cooperate/0, ident/1]).
+-export([start/0, align/0, curleader/2, recvldr/2, wait/1, follow/0, cooperate/0, ident/1]).
 
-wait() -> %% wait process terminates when merge is done
+wait(Y) -> %% wait process terminates when merge is done
 	receive
 		merge_done ->
 			io:format("Merge is done~n", [])
@@ -18,6 +18,22 @@ align() -> %% align process terminates when align is done
 			align();
 		align_done ->
 			io:format("Alignment done~n", [])
+	end.
+
+curleader(0, Recvldr_PID) -> %% current leader
+	receive
+		get_ldr -> %% return current leader
+			curleader(0, Recvldr_PID);
+		{set_ldr, 33} -> %% set current leader
+			Recvldr_PID ! {self(), 33},
+			io:format("Calling from current leader~n", [])
+	end.
+	
+recvldr(0, Curleader_PID) -> %% receives leader information
+	receive
+		{curleader, 33} ->
+			io:format("Received leader number on Y~n", []),
+			io:format("Set ldr info~n")
 	end.
 
 follow() -> %% This is the follow process function
@@ -45,6 +61,10 @@ start() -> %% program execution begins here
 	Align_PID = spawn(p2, align, []),
 	Align_PID ! align_start,
 	Align_PID ! align_done,
+	Curleader_PID = spawn(p2, curleader, []),
+	Curleader_PID ! {set_ldr, 33},
+	Recvldr_PID = spawn(p2, recvldr, [0, Curleader_PID]),
+	Recvldr_PID ! {curleader, 33},
 	Ident_PID = spawn(p2, ident, [1]),
 	Ident_PID ! get_id,
 	%% spawns two processes that execute concurrently like follow || cooperate in pi-calc
